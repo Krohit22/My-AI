@@ -1,8 +1,8 @@
 import base64
+import os
 from threading import Lock, Thread
 
 import cv2
-import openai
 from cv2 import VideoCapture, imencode
 from dotenv import load_dotenv
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -10,12 +10,18 @@ from langchain.schema.messages import SystemMessage
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI  # Assuming this is the intended model
 from pyaudio import PyAudio, paInt16
 from speech_recognition import Microphone, Recognizer, UnknownValueError
+from gtts import gTTS  # Import the gTTS library
 
 load_dotenv()
 
+def speak(text):
+    tts = gTTS(text=text, lang='en')
+    tts.save("output.mp3")  # Save audio to a file
+    os.system("mpg123 output.mp3")  # Play the audio using mpg321
+    os.remove("output.mp3")  # Remove the temporary audio file (optional)
 
 class WebcamStream:
     def __init__(self):
@@ -29,7 +35,6 @@ class WebcamStream:
             return self
 
         self.running = True
-
         self.thread = Thread(target=self.update, args=())
         self.thread.start()
         return self
@@ -37,7 +42,6 @@ class WebcamStream:
     def update(self):
         while self.running:
             _, frame = self.stream.read()
-
             self.lock.acquire()
             self.frame = frame
             self.lock.release()
@@ -71,37 +75,22 @@ class Assistant:
             return
 
         print("Prompt:", prompt)
-
         response = self.chain.invoke(
             {"prompt": prompt, "image_base64": image.decode()},
             config={"configurable": {"session_id": "unused"}},
         ).strip()
-
         print("Response:", response)
 
-        if response:
-            self._tts(response)
-
-    def _tts(self, response):
-        player = PyAudio().open(format=paInt16, channels=1, rate=24000, output=True)
-
-        with openai.audio.speech.with_streaming_response.create(
-            model="tts-1",
-            voice="alloy",
-            response_format="pcm",
-            input=response,
-        ) as stream:
-            for chunk in stream.iter_bytes(chunk_size=1024):
-                player.write(chunk)
+        speak(response)  # Call the speak function to convert and play the response
 
     def _create_inference_chain(self, model):
         SYSTEM_PROMPT = """
-        You are a witty assistant that will use the chat history and the image 
-        provided by the user to answer its questions. Your job is to answer 
+        You are a Kiko assistant that will use the chat history and the image
+        provided by the user to answer its questions. Your job is to answer
         questions.
 
         Use few words on your answers. Go straight to the point. Do not use any
-        emoticons or emojis. 
+        emoticons or emojis.
 
         Be friendly and helpful. Show some personality.
         """
@@ -136,11 +125,11 @@ class Assistant:
 
 webcam_stream = WebcamStream().start()
 
-# model = ChatGoogleGenerativeAI(model="gemini-1.5-flash-latest")
+model = ChatGoogleGenerativeAI(model="gemini-1.5-flash-latest")
 
 # You can use OpenAI's GPT-4o model instead of Gemini Flash
 # by uncommenting the following line:
-model = ChatOpenAI(model="gpt-4o")
+#model = ChatOpenAI(model="gpt-4o")
 
 assistant = Assistant(model)
 
