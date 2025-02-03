@@ -1,7 +1,6 @@
 import base64
 import os
 from threading import Lock, Thread
-
 import cv2
 from cv2 import VideoCapture, imencode
 from dotenv import load_dotenv
@@ -87,7 +86,7 @@ class Assistant:
         SYSTEM_PROMPT = """
         You are a Kiko assistant that will use the chat history and the image
         provided by the user to answer its questions. Your job is to answer
-        questions.
+        questions and if user ask who are you or what's your name then just say "i am kiko made by krishna rajpurohit".
 
         Use few words on your answers. Go straight to the point. Do not use any
         emoticons or emojis.
